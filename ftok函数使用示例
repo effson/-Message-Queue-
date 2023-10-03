@@ -1,0 +1,49 @@
+ftok 函数用于生成一个键值（key），通常用于创建或获取 System V IPC（进程间通信）对象，例如消息队列、共享内存段、信号量等的标识符。它是一个用于为 IPC 对象分配唯一标识符的工具。
+
+ftok 函数的声明如下：
+
+key_t ftok(const char *pathname, int proj_id);
+
+参数说明：
+
+pathname：一个字符串，通常是指向一个已存在的文件的路径。该文件的存在与否不会影响 ftok 的结果，但它会用于生成键值的一部分。pathname 的内容用于创建键值的低 8 位（低字节）。
+proj_id：一个整数，通常取值为 0 到 255。它用于生成键值的高 8 位（高字节），是用户定义的项目标识。
+
+返回值：
+如果成功，ftok 返回生成的键值（key_t 类型），可以用于后续创建或获取 IPC 对象。
+如果失败，返回 -1，并设置 errno 来指示错误类型。
+ftok 函数的典型用法是在多个进程中共享 IPC 对象的标识符，以便它们可以访问相同的 IPC 对象。通常，不同的 pathname 和 proj_id 参数组合会生成不同的键值，以确保唯一性。一旦生成
+了键值，你可以使用它来调用 msgget、shmget 或 semget 等函数，以创建或获取 IPC 对象的标识符。
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+int main() {
+    const char *pathname = "/tmp/myfile"; // 可以是任何已存在的文件
+    int proj_id = 'A'; // 用户定义的项目标识
+
+    key_t key = ftok(pathname, proj_id); // 生成键值
+
+    if (key == -1) {
+        perror("ftok");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("生成的键值：%d\n", (int)key);
+
+    // 使用生成的键值创建消息队列
+    int msqid = msgget(key, 0666 | IPC_CREAT);
+
+    if (msqid == -1) {
+        perror("msgget");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("消息队列标识符：%d\n", msqid);
+
+    return 0;
+}
