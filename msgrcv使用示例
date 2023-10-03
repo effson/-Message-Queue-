@@ -1,0 +1,55 @@
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+
+ssize_t msgrcv(int msqid, void *msgp, size_t msgsz, long msgtyp, int msgflg);
+参数说明：
+
+msqid：消息队列的标识符，这是由 msgget 函数返回的消息队列标识符。
+
+msgp：指向用于接收消息的缓冲区的指针。
+
+msgsz：接收缓冲区的大小，以字节为单位。这个参数表示接收缓冲区的最大容量，通常应该足够大以容纳你期望接收的消息。
+
+msgtyp：消息类型，这是一个长整数（long），用于筛选接收的消息。只有消息队列中的消息类型与此参数相匹配的消息才会
+被接收。如果设置为0，则表示接收队列中的第一条消息。
+
+msgflg：用于控制接收消息的行为的标志。可以使用0表示默认行为，也可以使用 IPC_NOWAIT 来指定非阻塞接收。其他标志包括 MSG_EXCEPT 和 MSG_COPY，可以根据需要使用。
+返回值：成功接收消息时，msgrcv 返回实际接收的消息数据的字节数。失败时，返回-1，并设置 errno 来指示错误类型。
+
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/types.h>
+#include <sys/ipc.h>
+#include <sys/msg.h>
+#include <string.h>
+
+struct msgbuf {
+    long mtype;       // 消息类型
+    char mtext[100];  // 消息内容
+};                        //这个结构体必须有这两项，其余部分自己可酌情添加
+
+int main() {
+    key_t key = ftok("/tmp/msgq", 'A');  // 获取一个键值，通常使用 ftok 来生成
+
+    int msqid = msgget(key, 0666 | IPC_CREAT);  // 创建或获取消息队列
+
+    struct msgbuf msg;
+    ssize_t msg_size;
+
+    // 接收消息
+    msg_size = msgrcv(msqid, &msg, sizeof(msg.mtext), 1, 0);//sizeof(msg.mtext)也可以写成sizeof(msgbuf)-sizeof(mtype)
+    if (msg_size == -1) {
+        perror("msgrcv");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("消息类型：%ld\n", msg.mtype);
+    printf("消息内容：%s\n", msg.mtext);
+
+    // 关闭或删除消息队列
+    msgctl(msqid, IPC_RMID, NULL);//删除队列不需要参数
+
+    return 0;
+}
